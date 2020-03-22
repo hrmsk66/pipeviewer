@@ -1,8 +1,8 @@
-use std::io::{self, Result, ErrorKind, Write, BufWriter};
 use std::fs::File;
-use std::sync::{Arc, Mutex};
+use std::io::{self, BufWriter, ErrorKind, Result, Write};
+use std::sync::mpsc::Receiver;
 
-pub fn write_loop(outfile: &str, quit: Arc<Mutex<bool>>) -> Result<()> {
+pub fn write_loop(outfile: &str, write_rx: Receiver<Vec<u8>>) -> Result<()> {
     let mut writer: Box<dyn Write> = if !outfile.is_empty() {
         Box::new(BufWriter::new(File::create(outfile)?))
     } else {
@@ -10,10 +10,8 @@ pub fn write_loop(outfile: &str, quit: Arc<Mutex<bool>>) -> Result<()> {
     };
 
     loop {
-        // todo: receive vector from stats thread
-        let buffer: Vec<u8> = Vec::new(); // so we can compile
-        let quit = quit.lock().unwrap();
-        if *quit {
+        let buffer = write_rx.recv().unwrap();
+        if buffer.is_empty() {
             break;
         }
         if let Err(e) = writer.write_all(&buffer) {
